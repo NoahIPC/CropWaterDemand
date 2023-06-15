@@ -22,6 +22,9 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import r2_score
 import numpy as np
 
+# Update this to the name of the basin
+BasinName = 'SNK'
+
 df = pd.read_csv('../Data/Climate/1980_2000.csv')
 df2 = pd.read_csv('../Data/Climate/2000_2022.csv')
 
@@ -94,8 +97,8 @@ ClimateTMIN = climateClean(ClimateTMIN)
 # Drop all columns with more than 10% NaN values
 ClimatePRCP = ClimatePRCP.dropna(thresh=ClimatePRCP.shape[0]*0.9, axis=1).fillna(0)
 
-ClimateTMAX.to_csv('../Outputs/Climate/ClimateTMAX.csv')
-ClimateTMIN.to_csv('../Outputs/Climate/ClimateTMIN.csv')
-ClimatePRCP.to_csv('../Outputs/Climate/ClimatePRCP.csv')
+ClimateTMAX.to_csv(f'../Outputs/{BasinName}/Climate/ClimateTMAX.csv')
+ClimateTMIN.to_csv(f'../Outputs/{BasinName}/Climate/ClimateTMIN.csv')
+ClimatePRCP.to_csv(f'../Outputs/{BasinName}/Climate/ClimatePRCP.csv')
 
 # %%

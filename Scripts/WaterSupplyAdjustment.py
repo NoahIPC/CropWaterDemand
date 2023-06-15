@@ -14,8 +14,7 @@ Flow Calculation: For each reach and month, calculates the gap between
 historical and modeled diversions.
 
 Piecewise Linear Fit: Computes a piecewise linear fit of the river
-diversion as a function of water supply, with a breakpoint determined by the
-5th smallest and largest water supply values. It calculates separate slopes
+diversion as a function of water supply. It calculates separate slopes
 before and after the breakpoint.
 
 Data Export: Saves the slopes and break values for each reach and month
@@ -32,8 +31,11 @@ import pandas as pd
 from datetime import datetime
 import matplotlib.pyplot as plt
 
-HistoricalDiversions = pd.read_csv('../Outputs/ObservedDiversions.csv', index_col=0, parse_dates=True)
-ModeledDiversions = pd.read_csv('../Outputs/ReachDiversions.csv', index_col=0, parse_dates=True)
+# Update this to the name of the basin
+BasinName = 'SNK'
+
+HistoricalDiversions = pd.read_csv(f'../Outputs/{BasinName}/ObservedDiversions.csv', index_col=0, parse_dates=True)
+ModeledDiversions = pd.read_csv(f'../Outputs/{BasinName}/ReachDiversions.csv', index_col=0, parse_dates=True)
 
 # Calculate the unregulated inflows from the South Fork and Henry's Fork in acre-feet
 HEII = pd.read_csv('../Data/Flows/HEII.csv', index_col=0, parse_dates=True)['heii_qu']
@@ -62,18 +64,18 @@ AMF = Reservoir[['amf_af']].sum(axis=1)
 SWSITotal = pd.concat((HEII, RIR, HEN, HEII+HEN+HEN, HEII+HEN+AMF), axis=1)
 SWSITotal.columns = ['HEII', 'RIR', 'HEN', 'HEII+HEN', 'HEII+HEN+AMF']
 
-ReachSWSI = pd.read_csv('../Data/ReachSWSI.csv', index_col=0)
+ReachWaterSupply = pd.read_csv('../Data/ReachSWSI.csv', index_col=0)
 
 # Only use months during the irrigation season
 months = [4, 5, 6, 7, 8, 9, 10, 11]
 monthsLength = [30, 31, 30, 31, 31, 30, 31, 30]
 
 # Slopes1 contains the slope of the linear regression of the water supply and the unregulated inflows for each month and reach before the break
-Slopes1 = pd.DataFrame(index=ReachSWSI.index, columns=months)
+Slopes1 = pd.DataFrame(index=ReachWaterSupply.index, columns=months)
 # Slopes2 contains the slope of the linear regression of the water supply and the unregulated inflows for each month and reach after the break
-Slopes2 = pd.DataFrame(index=ReachSWSI.index, columns=months)
+Slopes2 = pd.DataFrame(index=ReachWaterSupply.index, columns=months)
 # Breaks contains the water supply value at which the break occurs for each month and reach
-Breaks = pd.DataFrame(index=ReachSWSI.index, columns=months)
+Breaks = pd.DataFrame(index=ReachWaterSupply.index, columns=months)
 
 for reach in HistoricalDiversions.columns:
 
@@ -90,7 +92,7 @@ for reach in HistoricalDiversions.columns:
         Flow.drop(datetime(1980, 12, 31), inplace=True)
 
         # Get the avaiable water supply for the reach
-        WaterSupplyName = ReachSWSI.loc[reach, 'Water Supply']
+        WaterSupplyName = ReachWaterSupply.loc[reach, 'Water Supply']
         WaterSupply = SWSITotal[WaterSupplyName]
         WaterSupply = WaterSupply.loc[WaterSupply.index.month==month].resample('1Y').mean()
         WaterSupply = WaterSupply.reindex(Flow.index)
@@ -153,14 +155,26 @@ for reach in HistoricalDiversions.columns:
         plt.title(f'{reach}_{month}')
         plt.xlabel(f'{WaterSupplyName} (AF)')
         plt.ylabel('Total Diversion (AF)')
-        fig.savefig(f'../Outputs/Figures/{reach}_{month}.png', dpi=300)
+        fig.savefig(f'../Outputs/{BasinName}/Figures/{reach}_{month}.png', dpi=300)
 
         plt.close()
 
+WaterSupplyRiverWare = pd.DataFrame(index=ReachWaterSupply.index, columns=['HEII', 'HEN', 'AMF', 'RIR']).fillna(0)
+# Format ReachSWSI for RiverWare
+for reach in ReachWaterSupply.index:
+    if 'HEII' in ReachWaterSupply.loc[reach, 'Water Supply']:
+        WaterSupplyRiverWare.loc[reach, 'HEII'] = 1
+    if 'HEN' in ReachWaterSupply.loc[reach, 'Water Supply']:
+        WaterSupplyRiverWare.loc[reach, 'HEN'] = 1
+    if 'AMF' in ReachWaterSupply.loc[reach, 'Water Supply']:
+        WaterSupplyRiverWare.loc[reach, 'AMF'] = 1
+    if 'RIR' in ReachWaterSupply.loc[reach, 'Water Supply']:
+        WaterSupplyRiverWare.loc[reach, 'RIR'] = 1
         
+WaterSupplyRiverWare.to_csv(f'../Outputs/{BasinName}/RiverWareInputs/WaterSupply.csv')
 
-Breaks.to_csv('../Outputs/DiversionSWSIBreaks.csv')
-Slopes1.to_csv('../Outputs/DiversionSWSISlopes1.csv')
-Slopes2.to_csv('../Outputs/DiversionSWSISlopes2.csv')
+Breaks.to_csv(f'../Outputs/{BasinName}/DiversionSWSIBreaks.csv')
+Slopes1.to_csv(f'../Outputs/{BasinName}/DiversionSWSISlopes1.csv')
+Slopes2.to_csv(f'../Outputs/{BasinName}/DiversionSWSISlopes2.csv')
 
 # %%

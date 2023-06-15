@@ -1,4 +1,4 @@
 venv/*
 *.png
-Data/Diversions/*
-Outputs/*.csv
+Data/Diversions/**/*.csv
+Outputs/**/*.csv

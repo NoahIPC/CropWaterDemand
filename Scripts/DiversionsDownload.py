@@ -23,7 +23,7 @@ import numpy as np
 import os
 
 # Read in the diversion data
-Reaches = pd.read_csv('../Data/Diversions/ModelDiversions.csv')
+Reaches = pd.read_csv('../Data/RiverWareReaches.csv')
 
 for site in Reaches['IDWR Site Code']:
 

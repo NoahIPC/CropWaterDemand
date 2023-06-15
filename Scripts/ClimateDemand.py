@@ -27,13 +27,16 @@ from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.metrics import r2_score
 from sklearn.preprocessing import QuantileTransformer
 
+# Update this to the name of the basin
+BasinName = 'SNK'
+
 # From USBR RiverWare Report 
-Reaches = pd.read_csv('../Data/Diversions/ModelDiversions.csv')
+Reaches = pd.read_csv('../Data/RiverWareReaches.csv')
 
 # Load weather data
-ClimateTMAX = pd.read_csv('../Outputs/Climate/ClimateTMAX.csv', index_col=0, parse_dates=True)
-ClimateTMIN = pd.read_csv('../Outputs/Climate/ClimateTMIN.csv', index_col=0, parse_dates=True)
-ClimatePRCP = pd.read_csv('../Outputs/Climate/ClimatePRCP.csv', index_col=0, parse_dates=True)
+ClimateTMAX = pd.read_csv(f'../Outputs/{BasinName}/Climate/ClimateTMAX.csv', index_col=0, parse_dates=True)
+ClimateTMIN = pd.read_csv(f'../Outputs/{BasinName}/Climate/ClimateTMIN.csv', index_col=0, parse_dates=True)
+ClimatePRCP = pd.read_csv(f'../Outputs/{BasinName}/Climate/ClimatePRCP.csv', index_col=0, parse_dates=True)
 
 # Only use reaches the end with _SNK
 Reaches = Reaches[Reaches['RiverWare Reach'].str.contains('_SNK')]
@@ -162,8 +165,8 @@ for Reach in Reaches['RiverWare Reach'].unique():
     DiversionTotal = DiversionTotal.copy()
 
 ModelResults = pd.DataFrame(ModelResults, columns=['Reach', 'Climate Station', 'R2 Test', 'Annual Diversion (AF)'])
-ModelResults.to_csv('../Outputs/ClimateRegressionResults.csv')
-DiversionTotal.to_csv('../Outputs/ReachDiversions.csv')
-ObservedDiversions.to_csv('../Outputs/ObservedDiversions.csv')
+ModelResults.to_csv(f'../Outputs/{BasinName}/ClimateRegressionResults.csv')
+DiversionTotal.to_csv(f'../Outputs/{BasinName}/ReachDiversions.csv')
+ObservedDiversions.to_csv(f'../Outputs/{BasinName}/ObservedDiversions.csv')
 
 # %%

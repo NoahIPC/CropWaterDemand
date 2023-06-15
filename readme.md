@@ -18,3 +18,26 @@ Performs a detailed analysis of river diversions, unregulated inflows, and reser
 Computes and applies diversion adjustments on the basis of historical data. The script then generates a DMI script to populate data in a RiverWare model. The outputs include adjusted diversion data, interpolated slope and breakpoint values, and a .DMI file for data population in RiverWare.
 
 For each script, more detailed explanations of the procedures, input and output files, and involved libraries are provided in the script comments. Ensure you have all necessary Python packages installed and the required input data files are in the appropriate directories before running each script.
+
+# TO-DO to Expand to Additional Basins
+
+## 1. Update Climate Data to Include Additional Basins
+Use data from the Global Historical Climatology Network daily (GHCNd) found here https://www.ncei.noaa.gov/products/land-based-station/global-historical-climatology-network-daily
+
+## 2. Update Flow and Reservoir Data to Include Additional Basins
+Identify reservoirs and inflow sources for the basin.
+
+## 3. Update the scripts with the updated water supplies
+A couple of portions of the code are hard coded with the water supply calculations and therefore will need to be updated for additional basins. This will mostly impact the WaterSupplyAdjustment.py script.
+
+## 4. Run the Scripts described above
+These will create the necessary files for the RiverWare model in the folder you specified in step 1.
+
+## 5. Load the Full Water Supply Diversion data into RiverWare
+In RiverWare create a new data object labeled FullDiversionReach_{BasinName} and add a series slot for each reach in the basin. Use the .DMI file created in step 4 to load the data into RiverWare.
+
+# 6. Load the Adjustment Tables into RiverWare
+In RiverWare create a new data object labeled AdjustmentTable_{BasinName} and add two tables labeled DiversionWeight and WaterSupply. Copy the corresponding CSVs from the RiverWareInputs folder for the basin created in step 4.
+
+# 7. Update the RiverWare rule set to include the new basin water supply
+Copy the included example ruleset labeled RiverWareRule.txt 
