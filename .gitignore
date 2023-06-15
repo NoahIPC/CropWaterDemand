@@ -2,3 +2,5 @@ venv/*
 *.png
 Data/Diversions/**/*.csv
 Outputs/**/*.csv
+Outputs/**/*.DMI
+Outputs/**/*.png
