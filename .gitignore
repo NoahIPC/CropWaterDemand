@@ -4,3 +4,7 @@ Data/Diversions/**/*.csv
 Outputs/**/*.csv
 Outputs/**/*.DMI
 Outputs/**/*.png
+Outputs/**/*.txt
+Outputs/**/*.bak
+Outputs/Comparison/*
+Scripts/Compare.py
