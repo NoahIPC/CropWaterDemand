@@ -96,14 +96,18 @@ for Reach in DiversionTotal.columns:
             [
                 row["RiverWare Reach"],
                 row["Diversion name"],
-                SlopeThreshold.loc[Reach, "Slope1"],
+                SlopeThreshold.loc[Reach, "Slope"],
                 SlopeThreshold.loc[Reach, "Break"],
+                SlopeThreshold.loc[Reach, "y2"],
                 p,
             ]
         )
 
 
-Perc = pd.DataFrame(Perc, columns=["Diversion", "Name", "Slope", "Break", "Percentage"])
+Perc = pd.DataFrame(
+    Perc, columns=["Diversion", "Name", "Slope", "Break", "Offset", "Percentage"]
+)
+Perc.fillna(0, inplace=True)
 # This feeds into RiverWare
 Perc.to_csv(f"../Outputs/{BasinName}/RiverWareInputs/DiversionWeight.csv")
 

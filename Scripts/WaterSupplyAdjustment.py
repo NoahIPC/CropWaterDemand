@@ -30,6 +30,14 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 import matplotlib.pyplot as plt
+import re
+from scipy.optimize import curve_fit
+from sklearn.metrics import r2_score
+
+
+def piecewise_linear(x, m, b, y2):
+    return np.piecewise(x, [x < b, x >= b], [lambda x: m * (x - b) + y2, y2])
+
 
 # Update this to the name of the basin
 BasinName = "SNK"
@@ -80,9 +88,7 @@ ReachWaterSupply = pd.read_csv("../Data/ReachSWSI.csv", index_col=0)
 months = [4, 5, 6, 7, 8, 9, 10, 11]
 monthsLength = [30, 31, 30, 31, 31, 30, 31, 30]
 
-Outputs = pd.DataFrame(
-    index=ReachWaterSupply.index, columns=["Slope1", "Slope2", "Break"]
-)
+Outputs = pd.DataFrame(index=ReachWaterSupply.index, columns=["Slope", "y2", "Break"])
 
 for reach in HistoricalDiversions.columns:
     print(reach)
@@ -106,54 +112,45 @@ for reach in HistoricalDiversions.columns:
     WaterSupply = SWSITotal[WaterSupplyName]
     WaterSupply = WaterSupply.reindex(Flow.index)
 
+    # Set the bounds for the piecewise linear fit to be the 5th smallest and 5th largest water supply values
+    bounds = [
+        [WaterSupply.nsmallest(5).iloc[4], WaterSupply.nlargest(5).iloc[4]],
+        [0, 1],
+    ]
+
+    p, e = curve_fit(
+        piecewise_linear,
+        WaterSupply.values,
+        Flow.values,
+        p0=[0.01, WaterSupply.mean(), 0],
+    )
+
+    m = p[0]
+    b = p[1]
+    y2 = p[2]
+
+    slope1 = False
+    Outputs.loc[reach, "Break"] = b
+    Outputs.loc[reach, "Slope"] = m
+    Outputs.loc[reach, "y2"] = y2
+
     # Plot the flow vs the WaterSupply
     fig, ax = plt.subplots(figsize=(10, 5))
     ax.scatter(WaterSupply, Flow, label="Historical Diversions")
 
-    # Set the bounds for the piecewise linear fit to be the 5th smallest and 5th largest water supply values
-    bounds = [[WaterSupply.nsmallest(5).iloc[4], WaterSupply.nlargest(5).iloc[4]]]
-
-    # Calculate the piecewise linear fit
-    my_pwlf = pwlf.PiecewiseLinFit(WaterSupply, Flow)
-    breaks2 = my_pwlf.fit(2, bounds=bounds)
-
-    slope1 = False
-    Outputs.loc[reach, "Break"] = breaks2[1]
-    # Get all data between breaks1[0] and breaks1[1]
-    X = WaterSupply.loc[(WaterSupply >= breaks2[0]) & (WaterSupply <= breaks2[1])]
-    y = Flow.loc[(WaterSupply >= breaks2[0]) & (WaterSupply <= breaks2[1])]
-    X = sm.add_constant(X)
-    model = sm.OLS(y, X)
-    results = model.fit()
-
-    Outputs.loc[reach, "Slope1"] = my_pwlf.slopes[0]
-
-    # Get all data between breaks2[1] and breaks2[2]
-    X = WaterSupply.loc[(WaterSupply >= breaks2[1]) & (WaterSupply <= breaks2[2])]
-    y = Flow.loc[(WaterSupply >= breaks2[1]) & (WaterSupply <= breaks2[2])]
-    X = sm.add_constant(X)
-    model = sm.OLS(y, X)
-    results = model.fit()
-
-    # Check if the r2 value is greater than 0.3
-    r2 = results.rsquared
-    if results.rsquared > 0.3:
-        Outputs.loc[reach, "Slope2"] = my_pwlf.slopes[1]
-    else:
-        Outputs.loc[reach, "Slope2"] = 0
-
-    Outputs.loc[reach, "Slope2"] = my_pwlf.slopes[1]
-
     xHat = np.linspace(WaterSupply.min(), WaterSupply.max(), 100)
-    yHat = my_pwlf.predict(xHat)
+    yHat = piecewise_linear(xHat, m, b, y2)
     ax.plot(xHat, yHat, label="Piecewise Linear Fit")
 
-    # Select all data points that are before the second break
+    r2 = r2_score(Flow, piecewise_linear(WaterSupply.values, m, b, y2))
+
+    params = f"m={m:.2e}\n b={b:.2e}\n y2={y2:.2f}\n R2={r2:.2f}"
+    plt.plot([], [], " ", label=params)
 
     plt.legend()
     plt.title(f"{reach}")
     plt.xlabel(f"{WaterSupplyName} (AF)")
-    plt.ylabel("Total Diversion (AF)")
+    plt.ylabel("Total Diversion (CFS)")
     fig.savefig(f"../Outputs/{BasinName}/Figures/{reach}.png", dpi=300)
 
     plt.close()
@@ -178,21 +175,42 @@ Outputs.to_csv(f"../Outputs/{BasinName}/SlopeThreshold.csv")
 
 # %%
 
-gap = (
-    HistoricalDiversions - ModeledDiversions.reindex(HistoricalDiversions.index)
-).loc[
-    (HistoricalDiversions.index.year > 2000) * (HistoricalDiversions.index.year < 2005),
-    reach,
-]
-gap = gap.groupby(gap.index.dayofyear).mean()
-gap.loc[gap.index < 170] = 0
+ReachGap = pd.DataFrame(index=range(366), columns=HistoricalDiversions.columns)
 
-# Set the mean to 1
+for reach in HistoricalDiversions.columns:
+    gap = (
+        HistoricalDiversions - ModeledDiversions.reindex(HistoricalDiversions.index)
+    ).loc[
+        (HistoricalDiversions.index.year > 2000)
+        * (HistoricalDiversions.index.year < 2020),
+        reach,
+    ]
+    gap = gap.groupby(gap.index.dayofyear).mean()
+    gap.loc[gap.index < 170] = 0
 
-gap = gap.rolling(30).mean()
+    # Set the mean to 1
 
-gap = gap / gap.mean()
+    gap = gap.rolling(30).mean().fillna(0)
 
-gap.plot()
+    ReachGap[reach] = gap
+
+
+# We need to create a key for sorting that extracts the numeric part of the column header and converts it to int
+def sorting_key(column_name):
+    match = re.search(r"\d+", column_name)
+    if match:
+        return int(match.group())
+    else:
+        return 0
+
+
+ReachGap.fillna(0, inplace=True)
+
+# Set each column to have a mean of 1
+ReachGap = ReachGap / ReachGap.mean()
+
+ReachGap = ReachGap.reindex(sorted(ReachGap.columns, key=sorting_key), axis=1)
+
+ReachGap.to_csv(f"../Outputs/{BasinName}/RiverWareInputs/ReachGap.csv")
 
 # %%
