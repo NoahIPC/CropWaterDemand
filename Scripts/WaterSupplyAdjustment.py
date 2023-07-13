@@ -103,9 +103,7 @@ for reach in HistoricalDiversions.columns:
         .fillna(0)
     )
 
-    # Drop 1993 (There were some odd system regulations this year) and 1980 (Incomplete dataset)
-    Flow.drop(datetime(1993, 12, 31), inplace=True)
-    Flow.drop(datetime(1980, 12, 31), inplace=True)
+    Flow = Flow.loc[Flow.index.year >= 2000]
 
     # Get the avaiable water supply for the reach
     WaterSupplyName = ReachWaterSupply.loc[reach, "Water Supply"]
