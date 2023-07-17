@@ -94,7 +94,7 @@ for Reach in Reaches["RiverWare Reach"].unique():
 
     # Set values outside irrigation season to 0
     Diversions[
-        (Diversions.index.dayofyear < 74) & (Diversions.index.dayofyear < 319)
+        (Diversions.index.dayofyear < 74) | (Diversions.index.dayofyear > 319)
     ] = 0
 
     # Reindex to 1980 - 2018

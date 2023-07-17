@@ -20,7 +20,6 @@ breakpoint data, interpolating these values across all dates.
 DMI Script Generation: Writes a .DMI file which populates data in a
 RiverWare model with the interpolated values.
 
-This script uses pandas, datetime, and python file I/O operations.
 
 """
 

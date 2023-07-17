@@ -37,7 +37,7 @@ These will create the necessary files for the RiverWare model in the folder you 
 In RiverWare create a new data object labeled FullDiversionReach_{BasinName} and add a series slot for each reach in the basin. Use the .DMI file created in step 4 to load the data into RiverWare.
 
 ## 6. Load the Adjustment Tables into RiverWare
-In RiverWare create a new data object labeled AdjustmentTable_{BasinName} and add two tables labeled DiversionWeight and WaterSupply. Copy the corresponding CSVs from the RiverWareInputs folder for the basin created in step 4.
+In RiverWare import the object previously created in Outputs/{BasinName}/RiverWareInputs/DivAdjPopulate.bak and rename this object to AdjustmentTable_{BasinName}. Finally, create a new table labels WaterSupply and paste in the WaterSupply.csv file.
 
 ## 7. Update the RiverWare rule set to include the new basin water supply
-Copy the included example ruleset labeled RiverWareRule.txt 
+Copy the included example ruleset labeled RiverWareRule.txt and add it to the RiverWare model. Update the rule set to include the new basin water supply. 
