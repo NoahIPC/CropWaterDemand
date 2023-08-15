@@ -8,3 +8,4 @@ Outputs/**/*.txt
 Outputs/**/*.bak
 Outputs/Comparison/*
 Scripts/Compare.py
+Data/Climate/**/*.csv

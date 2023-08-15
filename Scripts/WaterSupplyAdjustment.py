@@ -40,49 +40,47 @@ def piecewise_linear(x, m, b, y2):
 
 
 # Update this to the name of the basin
-BasinName = "SNK"
+BasinName = "PAY"
 
-HistoricalDiversions = pd.read_csv(
-    f"../Outputs/{BasinName}/ObservedDiversions.csv", index_col=0, parse_dates=True
-)
-ModeledDiversions = pd.read_csv(
-    f"../Outputs/{BasinName}/ReachDiversions.csv", index_col=0, parse_dates=True
-)
+WaterSupplyDict = {'SNK': {'HEII': {'Inflow': ['HEII'], 'Reservoirs': ['jck_af', 'pal_af']},
+                           'HEN': {'Inflow': ['ISLI'], 'Reservoirs': ['isl_af', 'grs_af', 'hen_af']},
+                           'HEII+HEN' : {'Inflow': ['HEII', 'ISLI'], 'Reservoirs': ['jck_af', 'pal_af', 'isl_af', 'grs_af', 'hen_af']}, 
+                           'HEII+HEN+AMF': {'Inflow': ['ISLI', 'HEII'], 'Reservoirs': ['jck_af', 'pal_af', 'isl_af', 'grs_af', 'hen_af', 'amf_af']},
+                            'RIR': {'Inflow': [], 'Reservoirs': ['rir_af']}},
+                    'BOI': {'BOI': {'Inflow': ['LUC'], 'Reservoirs': ['LUC', 'ARK', 'AND']}},
+                    'PAY': {'PAY': {'Inflow': ['HRSI'], 'Reservoirs': ['CSC', 'DED']}}}
 
-# Calculate the unregulated inflows from the South Fork and Henry's Fork in acre-feet
-HEII = pd.read_csv("../Data/Flows/HEII.csv", index_col=0, parse_dates=True)["heii_qu"]
-HEII *= 1.9835
-ISLI = pd.read_csv("../Data/Flows/HEII.csv", index_col=0, parse_dates=True)["isli_qu"]
-ISLI *= 1.9835
+SWSITotal = pd.DataFrame(index=pd.date_range('1980-01-01', '2018-12-31', freq='D'), columns=WaterSupplyDict[BasinName].keys()).fillna(0)
 
-HEII.loc[(HEII.index.month < 4) | (HEII.index.month > 11)] = 0
-ISLI.loc[(ISLI.index.month < 4) | (ISLI.index.month > 11)] = 0
+WaterSupply = WaterSupplyDict[BasinName]
 
+for reach in WaterSupply.keys():
 
-# Add the reservoir storage to the inflows
-Reservoir = pd.read_csv(
-    "../Data/Reservoirs/SnakeReservoirs.csv", index_col=0, parse_dates=True
-)
-Reservoir = Reservoir.reindex(HEII.index)
+    for flow in WaterSupply[reach]['Inflow']:
+        df = pd.read_html(f"https://www.usbr.gov/pn-bin/daily.pl?station={flow}&format=html&year=1980&month=1&day=1&year=2018&month=12&day=31&pcode=qu", 
+                                        index_col=0, parse_dates=True)[0]
+        df *= 1.9835
+        df.loc[(df.index.month < 4) | (df.index.month > 11)] = 0
+        SWSITotal[reach] += df.values.flatten()
 
-Reservoir.loc[(Reservoir.index.month != 3) | (Reservoir.index.day != 31)] = 0
-
-
-HEII = HEII + Reservoir[["jck_af", "pal_af"]].sum(axis=1)
-
-HEN = ISLI + Reservoir[["isl_af", "grs_af", "hen_af"]].sum(axis=1)
-
-RIR = Reservoir[["rir_af"]].sum(axis=1)
-
-AMF = Reservoir[["amf_af"]].sum(axis=1)
-
-SWSITotal = pd.concat((HEII, RIR, HEN, HEII + HEN + HEN, HEII + HEN + AMF), axis=1)
-SWSITotal.columns = ["HEII", "RIR", "HEN", "HEII+HEN", "HEII+HEN+AMF"]
+    for reservoir in WaterSupply[reach]['Reservoirs']:
+        df = pd.read_html(f"https://www.usbr.gov/pn-bin/daily.pl?station={reservoir}&format=html&year=1980&month=1&day=1&year=2018&month=12&day=31&pcode=af", 
+                                        index_col=0, parse_dates=True)[0]
+        df.loc[(df.index.month != 3) & (df.index.day != 31)] = 0
+        SWSITotal[reach] += df.values.flatten()
 
 SWSITotal = SWSITotal.resample("1Y").sum()
 
-ReachWaterSupply = pd.read_csv("../Data/ReachSWSI.csv", index_col=0)
 
+
+HistoricalDiversions = pd.read_csv(f"../Outputs/{BasinName}/ObservedDiversions.csv",
+                                    index_col=0, parse_dates=True).dropna()
+ModeledDiversions = pd.read_csv(f"../Outputs/{BasinName}/ReachDiversions.csv", 
+                                index_col=0, parse_dates=True).dropna()
+
+# Only use reaches the end with BasinName
+ReachWaterSupply = pd.read_csv("../Data/ReachSWSI.csv", index_col=0)
+ReachWaterSupply = ReachWaterSupply[ReachWaterSupply.index.str.contains(f"_{BasinName}")]
 
 # Only use months during the irrigation season
 months = [4, 5, 6, 7, 8, 9, 10, 11]
@@ -95,13 +93,8 @@ for reach in HistoricalDiversions.columns:
 
     # Get the gap between the historical diversions and the previously calculated full water supply diversions
     Flow = (
-        (HistoricalDiversions - ModeledDiversions.reindex(HistoricalDiversions.index))[
-            reach
-        ]
-        .resample("1Y")
-        .mean()
-        .fillna(0)
-    )
+        (HistoricalDiversions - ModeledDiversions.reindex(HistoricalDiversions.index))[reach]
+        .resample("1Y").mean().fillna(0))
 
     Flow = Flow.loc[Flow.index.year >= 2000]
 
