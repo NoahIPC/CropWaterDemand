@@ -6,6 +6,7 @@ Outputs/**/*.DMI
 Outputs/**/*.png
 Outputs/**/*.txt
 Outputs/**/*.bak
+Outputs/**/*.html
 Outputs/Comparison/*
 Scripts/Compare.py
 Data/Climate/**/*.csv

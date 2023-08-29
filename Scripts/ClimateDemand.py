@@ -27,8 +27,13 @@ from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.metrics import r2_score
 from sklearn.preprocessing import QuantileTransformer
 
+import plotly.graph_objects as go
+
+import os
+
+
 # Update this to the name of the basin
-BasinName = "SNK"
+BasinName = "PAY"
 
 # From USBR RiverWare Report
 Reaches = pd.read_csv("../Data/RiverWareReaches.csv")
@@ -104,6 +109,12 @@ for Reach in ObservedDiversions.columns:
     Diversions = ObservedDiversions[Reach].copy()
 
     if Diversions.mean()<1:
+        MedianDiv = ObservedDiversions.loc[ObservedDiversions[Reach]>0, Reach]
+        MedianDiv = MedianDiv.groupby(MedianDiv.index.dayofyear).median()
+        for i in MedianDiv.index:
+            DiversionTotal.loc[DiversionTotal.index.dayofyear == i, Reach] = MedianDiv.loc[i]
+        DiversionTotal[Reach] = DiversionTotal[Reach].fillna(0)
+        DiversionTotal = DiversionTotal.copy()
         continue
 
     rMax = 0
@@ -125,7 +136,10 @@ for Reach in ObservedDiversions.columns:
         Climate = ClimateStation(Station)
     
         # Years that have have a full water supply
-        Years = [2010, 2012, 2014, 2017, 2018]
+        if BasinName == "SNK":
+            Years = [2010, 2012, 2014, 2017, 2018]
+        elif BasinName == "BOI":
+            Years = [2010, 2011, 2012, 2014, 2016, 2017, 2018]
 
         ClimateYear = Climate[[year in Years for year in Climate.index.year]]
 
@@ -164,6 +178,16 @@ for Reach in ObservedDiversions.columns:
     MissPred = qt.inverse_transform(MissPred.reshape(-1, 1)).flatten()
     MissPred = pd.Series(data=MissPred, index=Climate.dropna().index).fillna(0)
     MissPred = MissPred.reindex(DiversionTotal.index).fillna(0)
+
+    # if folder doesn't exist, create it
+    if not os.path.exists(f"../Outputs/{BasinName}/Figures/ModeledDiversions"):
+        os.makedirs(f"../Outputs/{BasinName}/Figures/ModeledDiversions")
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=MissPred.index, y=MissPred, name="Modeled Full Water Supply Demand"))
+    fig.add_trace(go.Scatter(x=ObservedDiversions.index, y=ObservedDiversions[Reach], name="Observed Demand"))
+    fig.update_layout(title=f"{Reach} Modeled vs Observed Diversions", xaxis_title="Date", yaxis_title="Diversions (cfs)")
+    fig.write_html(f"../Outputs/{BasinName}/Figures/ModeledDiversions/{Reach}ModeledDiversions.html")
 
     DiversionSum = Diversions.resample("1Y").sum().mean() * 1.9835
     ModelResults.append([Reach, colMax, rMax, DiversionSum])
