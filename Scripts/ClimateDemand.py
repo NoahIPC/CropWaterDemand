@@ -33,7 +33,7 @@ import os
 
 
 # Update this to the name of the basin
-BasinName = "PAY"
+BasinName = "SNK"
 
 # From USBR RiverWare Report
 Reaches = pd.read_csv("../Data/RiverWareReaches.csv")
@@ -71,17 +71,17 @@ for Reach in Reaches["RiverWare Reach"].unique():
             print(f"No diversion data for {Reach} {div}")
             continue
 
-    # Subtract out recharge if present
+    # Subtract out non-irrigation diversions
     try:
         rech = pd.read_csv(
-            f"../Data/Diversions/{Reach}/Recharge.csv", index_col=0, parse_dates=True
+            f"../Data/Diversions/{Reach}/NonIrr.csv", index_col=0, parse_dates=True
         )
         Diversions -= rech.reindex(Diversions.index).fillna(0).values.flatten()
     except FileNotFoundError:
         pass
 
     # Set values outside irrigation season to 0
-    Diversions[(Diversions.index.dayofyear < 74) | (Diversions.index.dayofyear > 319)] = 0
+    Diversions[Diversions.index.dayofyear < 31] = 0
 
     # Reindex to 1980 - 2018
     Diversions = Diversions.reindex(pd.date_range(datetime(1980, 1, 1), datetime(2018, 12, 31)))
@@ -92,7 +92,6 @@ for Reach in Reaches["RiverWare Reach"].unique():
 
     ObservedDiversions[Reach] += Diversions
 
-#%%
 
 # Find all columns with data for ClimateTMAX, ClimateTMIN, ClimatePRCP
 cols = list(set(ClimateTMAX.columns)
@@ -139,7 +138,9 @@ for Reach in ObservedDiversions.columns:
         if BasinName == "SNK":
             Years = [2010, 2012, 2014, 2017, 2018]
         elif BasinName == "BOI":
-            Years = [2010, 2011, 2012, 2014, 2016, 2017, 2018]
+            Years = [2011, 2012, 2017, 2018]
+        elif BasinName == "PAY":
+            Years = [2010, 2011, 2012, 2017, 2018]
 
         ClimateYear = Climate[[year in Years for year in Climate.index.year]]
 

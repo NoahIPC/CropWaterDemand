@@ -5,7 +5,9 @@ Outputs/**/*.csv
 Outputs/**/*.DMI
 Outputs/**/*.png
 Outputs/**/*.txt
-Outputs/**/*.bak
+Outputs/SNK/**/*.bak
+Outputs/PAY/**/*.bak
+Outputs/BOI/**/*.bak
 Outputs/**/*.html
 Outputs/Comparison/*
 Scripts/Compare.py

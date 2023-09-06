@@ -29,7 +29,7 @@ from datetime import datetime
 import os
 
 # Update this to the name of the basin
-BasinName = "BOI"
+BasinName = "PAY"
 
 DiversionTotal = pd.read_csv(
     f"../Outputs/{BasinName}/ReachDiversions.csv", index_col=0, parse_dates=True
@@ -44,6 +44,10 @@ f = open(f"../Outputs/{BasinName}/RiverWareInputs/FullDiversions.DMI", "w")
 
 PathName = os.path.dirname(os.getcwd()).replace("\\", "/")
 
+# if folder does not exist, create it
+if not os.path.exists(f"../Outputs/{BasinName}/RiverWareInputs/FullDiversions"):
+    os.makedirs(f"../Outputs/{BasinName}/RiverWareInputs/FullDiversions")
+
 for reach in DiversionTotal.columns:
     div = DiversionTotal[reach].loc[datetime(1980, 9, 30) :]
     div = div.resample("1D").ffill()
@@ -55,12 +59,11 @@ for reach in DiversionTotal.columns:
     )
 
     f.write(
-        f"DiversionsClimateModeled_{BasinName}.{reach}: file={PathName}/Outputs/{BasinName}/RiverWareInputs/FullDiversions/{reach}.txt import=resize\n"
+        f"FullDiversionReach_{BasinName}.{reach}: file={PathName}/Outputs/{BasinName}/RiverWareInputs/FullDiversions/{reach}.txt import=resize\n"
     )
 
 f.close()
 
-# %%
 
 # Calculate the percentage of the diversions for each reach
 Perc = []
@@ -111,11 +114,10 @@ Perc.fillna(0, inplace=True)
 Perc.to_csv(f"../Outputs/{BasinName}/RiverWareInputs/DiversionWeight.csv")
 
 
-# %%
 import uuid
 
 # Write Header for RiverWare Object
-header = f"""# RiverWare_Object 9.0.4 Patch
+header = f"""# RiverWare_Object 8.3.5 Patch
 # Created 13:38 July 3, 2023
 # CADSWES, University of Colorado at Boulder, http://cadswes.colorado.edu/
 # objects:  1
@@ -207,6 +209,18 @@ div_weight += """"$o" hideSlots 0 hideOff hideEmptyOff
 ReachWaterSupply = pd.read_csv("../Data/ReachSWSI.csv")
 ReachWaterSupply = ReachWaterSupply[ReachWaterSupply['Reach'].str.contains(f"_{BasinName}")]
 
+ReachWaterSupply['Water Supply'] = ReachWaterSupply['Water Supply'].apply(lambda x: x.split('+'))
+
+ReachWaterSupply = ReachWaterSupply.explode('Water Supply')
+
+ReachWaterSupplyPivot = pd.DataFrame(index=ReachWaterSupply['Reach'].unique(), 
+                                     columns=ReachWaterSupply['Water Supply'].unique())
+
+for i, row in ReachWaterSupply.iterrows():
+    ReachWaterSupplyPivot.loc[row['Reach'], row['Water Supply']] = 1
+
+ReachWaterSupplyPivot.fillna(0, inplace=True)
+
 # Reach as index and Water Supply as columns and get the count
 ReachWaterSupply = ReachWaterSupply.pivot_table(
     index="Reach", columns="Water Supply", aggfunc="size"
@@ -254,10 +268,10 @@ div_adj = header + div_shortage + div_weight + water_supply + footer
 f = open(f"../Outputs/{BasinName}/RiverWareInputs/DivAdjPopulate.bak", "w")
 f.write(div_adj)
 f.close()
-# %%
+
 DiversionTotal = pd.read_csv(f"../Outputs/{BasinName}/ReachDiversions.csv", index_col=0, parse_dates=True).dropna()
 
-header = f"""# RiverWare_Object 9.0.4 Patch
+header = f"""# RiverWare_Object 8.3.5 Patch
 # Created 13:21 August 29, 2023
 # CADSWES, University of Colorado at Boulder, http://cadswes.colorado.edu/
 # objects:  1

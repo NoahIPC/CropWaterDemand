@@ -41,13 +41,15 @@ def piecewise_linear(x, m, b, y2):
 BasinName = "BOI"
 
 # Dictionary of water supply sources for each reach
-WaterSupplyDict = {'SNK': {'HEII': {'Inflow': ['HEII'], 'Reservoirs': ['jck_af', 'pal_af']},
-                           'HEN': {'Inflow': ['ISLI'], 'Reservoirs': ['isl_af', 'grs_af', 'hen_af']},
-                           'HEII+HEN' : {'Inflow': ['HEII', 'ISLI'], 'Reservoirs': ['jck_af', 'pal_af', 'isl_af', 'grs_af', 'hen_af']}, 
-                           'HEII+HEN+AMF': {'Inflow': ['ISLI', 'HEII'], 'Reservoirs': ['jck_af', 'pal_af', 'isl_af', 'grs_af', 'hen_af', 'amf_af']},
-                            'RIR': {'Inflow': [], 'Reservoirs': ['rir_af']}},
+WaterSupplyDict = {'SNK': {'HEII': {'Inflow': ['HEII'], 'Reservoirs': ['JCK', 'PAL']},
+                           'HEN': {'Inflow': ['ISLI'], 'Reservoirs': ['ISL', 'GRS', 'HEN']},
+                           'HEII+HEN' : {'Inflow': ['HEII', 'ISLI'], 'Reservoirs': ['JCK', 'PAL', 'ISL', 'GRS', 'HEN']}, 
+                           'HEII+HEN+AMF': {'Inflow': ['ISLI', 'HEII'], 'Reservoirs': ['JCK', 'PAL', 'ISL', 'GRS', 'HEN', 'AMF']},
+                            'RIR': {'Inflow': [], 'Reservoirs': ['RIR']}},
                     'BOI': {'BOI': {'Inflow': ['LUC'], 'Reservoirs': ['LUC', 'ARK', 'AND']}},
                     'PAY': {'PAY': {'Inflow': ['HRSI'], 'Reservoirs': ['CSC', 'DED']}}}
+
+StartDay = {'SNK': 91, 'BOI': 91, 'PAY': 91}
 
 SWSITotal = pd.DataFrame(index=pd.date_range('1980-01-01', '2018-12-31', freq='D'), columns=WaterSupplyDict[BasinName].keys()).fillna(0)
 
@@ -59,13 +61,13 @@ for reach in WaterSupply.keys():
         df = pd.read_html(f"https://www.usbr.gov/pn-bin/daily.pl?station={flow}&format=html&year=1980&month=1&day=1&year=2018&month=12&day=31&pcode=qu", 
                                         index_col=0, parse_dates=True)[0]
         df *= 1.9835
-        df.loc[(df.index.month < 4) | (df.index.month > 10)] = 0
+        df.loc[(df.index.dayofyear < StartDay[BasinName]) | (df.index.dayofyear > 273)] = 0
         SWSITotal[reach] += df.values.flatten()
 
     for reservoir in WaterSupply[reach]['Reservoirs']:
         df = pd.read_html(f"https://www.usbr.gov/pn-bin/daily.pl?station={reservoir}&format=html&year=1980&month=1&day=1&year=2018&month=12&day=31&pcode=af", 
                                         index_col=0, parse_dates=True)[0]
-        df.loc[(df.index.month != 3) | (df.index.day != 31)] = 0
+        df.loc[df.index.dayofyear!=StartDay[BasinName]] = 0
         SWSITotal[reach] += df.values.flatten()
 
 SWSITotal = SWSITotal.resample("1Y").sum()
@@ -200,7 +202,6 @@ WaterSupplyRiverWare.to_csv(f"../Outputs/{BasinName}/RiverWareInputs/WaterSupply
 
 Outputs.to_csv(f"../Outputs/{BasinName}/SlopeThreshold.csv")
 
-# %%
 
 ReachGap = pd.DataFrame(index=range(366), columns=HistoricalDiversions.columns)
 
@@ -213,7 +214,7 @@ for reach in HistoricalDiversions.columns:
         reach,
     ]
     gap = gap.groupby(gap.index.dayofyear).mean()
-    gap.loc[gap.index < 170] = 0
+    gap.loc[gap.index < StartDay[BasinName]] = 0
 
     # Set the mean to 1
 

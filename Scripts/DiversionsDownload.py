@@ -51,3 +51,18 @@ for site in Reaches['IDWR Site Code']:
     df.to_csv(f'../Data/Diversions/{Reach}/{site}.csv', index=False)
 
 # %%
+
+# Calculate diversions to Lake Lowell
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+Lowell = pd.read_html("https://www.usbr.gov/pn-bin/daily.pl?station=low&format=html&year=1980&month=9&day=30&year=2023&month=8&day=31&pcode=af", 
+                                index_col=0, parse_dates=True)[0]
+
+Div = Lowell.rolling(14, center=True).mean().diff().clip(0)
+
+Div.to_csv("../Data/Diversions/Reach7Diversions_BOI/NonIrr.csv")
+
+# Plot 1983
+plt.plot(Div.loc["1983-01-01":"1983-12-31"])

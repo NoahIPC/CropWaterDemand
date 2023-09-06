@@ -1,0 +1,279 @@
+# RiverWare_Ruleset 8.3.5 Patch
+# Created 11:09 September 1, 2023
+# 
+RULESET
+NAME "RBS Ruleset (from model file) 3";
+AGENDA_ORDER ASCENDING;
+DESCRIPTION "";
+PRECISION   8;
+NOTES "";
+BEGIN
+
+  POLICY_GROUP   "Hydrologic State and Div Requests";
+  DESCRIPTION    "";
+  ACTIVE         TRUE;
+  NOTES          "";
+  BEGIN
+
+    RULE                 "Brownlee";
+    DESCRIPTION          "";
+    ACTIVE               TRUE;
+    RULE_EXEC_CONSTRAINT NOT "HasRuleFiredSuccessfully"( "ThisRule" );
+    NOTES                "";
+    BEGIN
+
+    BREAKPOINT AFTER_EXEC FALSE;
+      $ "Brownlee.Outflow" [] := $ "Brownlee.Inflow" [];
+
+    END
+    UUID "{9b571dda-b44d-4968-aeed-e1492b50e90e}";;
+
+    RULE                 "Water Supply Adjustment SNK";
+    DESCRIPTION          "";
+    ACTIVE               TRUE;
+    RULE_EXEC_CONSTRAINT NOT "HasRuleFiredSuccessfully"( "ThisRule" );
+    NOTES                "";
+    BEGIN
+
+      IF_STATEMENT (@"t" == @"April 1") THEN
+            WITH_STATEMENT (LIST data = "RowLabels"( $ "AdjustmentTable_SNK.DiversionWeight" )) DO
+            FOREACH (STRING reach IN data) DO
+            WITH_STATEMENT (LIST AggWU = "Split"( reach, "__" )) DO
+            WITH_STATEMENT (NUMERIC WaterSupply = ( $ "Jackson.Storage" [@"24:00:00 March 31, Current Year"] + $ "Palisades.Storage" [@"24:00:00 March 31, Current Year"] + "SumFlowsToVolume"( $ "Jackson.Hydrologic Inflow", @"24:00:00 April 1, Current Year", @"24:00:00 November 30, Current Year" ) + "SumFlowsToVolume"( $ "JacksonToJKSY:Local.Local Inflow", @"24:00:00 April 1, Current Year", @"24:00:00 November 30, Current Year" ) + "SumFlowsToVolume"( $ "Palisades.Hydrologic Inflow", @"24:00:00 April 1, Current Year", @"24:00:00 November 30, Current Year" ) + "SumFlowsToVolume"( $ "PalisadesToHEII:Local.Local Inflow", @"24:00:00 April 1, Current Year", @"24:00:00 November 30, Current Year" ) ) * $ "AdjustmentTable_SNK.WaterSupply" [GET @INDEX 0.00000000 FROM AggWU, "HEII"] + ( $ "GrassyLake.Storage" [@"24:00:00 March 31, Current Year"] + $ "Henrys.Storage" [@"24:00:00 March 31, Current Year"] + $ "IslandPark.Storage" [@"24:00:00 March 31, Current Year"] + "SumFlowsToVolume"( $ "Henrys.Hydrologic Inflow", @"24:00:00 April 1, Current Year", @"24:00:00 November 30, Current Year" ) + "SumFlowsToVolume"( $ "IslandPark.Hydrologic Inflow", @"24:00:00 April 1, Current Year", @"24:00:00 November 30, Current Year" ) ) * $ "AdjustmentTable_SNK.WaterSupply" [GET @INDEX 0.00000000 FROM AggWU, "HEN"] + $ "AmericanFalls.Storage" [@"24:00:00 March 31, Current Year"] * $ "AdjustmentTable_SNK.WaterSupply" [GET @INDEX 0.00000000 FROM AggWU, "AMF"] + $ "Ririe.Storage" [@"24:00:00 March 31, Current Year"] * $ "AdjustmentTable_SNK.WaterSupply" [GET @INDEX 0.00000000 FROM AggWU, "RIR"]) DO
+            FOREACH (DATETIME dt IN @"24:00:00 April 1, Current Year" TO @"24:00:00 December 1, Current Year") DO
+            IF_STATEMENT (WaterSupply > $ "AdjustmentTable_SNK.DiversionWeight" [reach, "Threshold"]) THEN
+            "GetSlot"( ( ( GET @INDEX 0.00000000 FROM AggWU ) CONCAT ":" CONCAT GET @INDEX 1.00000000 FROM AggWU ) CONCAT ".Diversion Requested" ) [dt] := "GetSlot"( ( % "FullDiversionReach_SNK" CONCAT "." CONCAT GET @INDEX 0.00000000 FROM AggWU ) ) [dt] * $ "AdjustmentTable_SNK.DiversionWeight" [reach, "Percent"];
+
+      ELSE
+            "GetSlot"( ( ( GET @INDEX 0.00000000 FROM AggWU ) CONCAT ":" CONCAT GET @INDEX 1.00000000 FROM AggWU ) CONCAT ".Diversion Requested" ) [dt] := "Max"( ( "GetSlot"( ( % "FullDiversionReach_SNK" CONCAT "." CONCAT GET @INDEX 0.00000000 FROM AggWU ) ) [dt] - $ "AdjustmentTable_SNK.DiversionWeight" [reach, "Slope"] * ( ( $ "AdjustmentTable_SNK.DiversionWeight" [reach, "Threshold"] - WaterSupply ) / 1.00000000 "acre-ft" * 0.50400000 "cfs" ) * $ "AdjustmentTable_SNK.DiversionShortageSpread" [dt, ( GET @INDEX 0.00000000 FROM AggWU )] ) * $ "AdjustmentTable_SNK.DiversionWeight" [reach, "Percent"], 0.00000000 "cfs" );
+
+      END_IF_STATEMENT;
+
+      ENDFOREACH;
+
+      END_WITH_STATEMENT;
+
+      END_WITH_STATEMENT;
+
+      ENDFOREACH;
+
+      END_WITH_STATEMENT;
+
+      END_IF_STATEMENT;
+
+    END
+    UUID "{7980445e-3451-4593-8f36-befc80e4756d}";;
+
+    RULE                 "Water Supply Adjustment BOI";
+    DESCRIPTION          "";
+    ACTIVE               TRUE;
+    RULE_EXEC_CONSTRAINT NOT "HasRuleFiredSuccessfully"( "ThisRule" );
+    NOTES                "";
+    BEGIN
+
+      IF_STATEMENT (@"t" == @"April 1") THEN
+            WITH_STATEMENT (LIST data = "RowLabels"( $ "AdjustmentTable_BOI.DiversionWeight" )) DO
+            FOREACH (STRING reach IN data) DO
+            WITH_STATEMENT (LIST AggWU = "Split"( reach, "__" )) DO
+            WITH_STATEMENT (NUMERIC WaterSupply = $ "Arrowrock.Storage" [@"24:00:00 March 31, Current Year"] + $ "AndersonRanch.Storage" [@"24:00:00 March 31, Current Year"] + $ "LuckyPeak.Storage" [@"24:00:00 March 31, Current Year"] + "SumFlowsToVolume"( $ "AndersonRanchInflows.Inflow", @"24:00:00 April 1, Current Year", @"24:00:00 November 30, Current Year" ) + "SumFlowsToVolume"( $ "ANDItoARKI:Local.Local Inflow", @"24:00:00 April 1, Current Year", @"24:00:00 November 30, Current Year" ) + "SumFlowsToVolume"( $ "ARKItoLUCI:Local.Local Inflow", @"24:00:00 April 1, Current Year", @"24:00:00 November 30, Current Year" ) + "SumFlowsToVolume"( $ "ANDItoARKI:TwinSprings.Local Inflow", @"24:00:00 April 1, Current Year", @"24:00:00 November 30, Current Year" )) DO
+            FOREACH (DATETIME dt IN @"24:00:00 April 1, Current Year" TO @"24:00:00 December 1, Current Year") DO
+            IF_STATEMENT (WaterSupply > $ "AdjustmentTable_BOI.DiversionWeight" [reach, "Threshold"]) THEN
+            "GetSlot"( ( ( GET @INDEX 0.00000000 FROM AggWU ) CONCAT ":" CONCAT GET @INDEX 1.00000000 FROM AggWU ) CONCAT ".Diversion Requested" ) [dt] := "GetSlot"( ( % "FullDiversionReach_BOI" CONCAT "." CONCAT GET @INDEX 0.00000000 FROM AggWU ) ) [dt] * $ "AdjustmentTable_BOI.DiversionWeight" [reach, "Percent"];
+
+      ELSE
+            "GetSlot"( ( ( GET @INDEX 0.00000000 FROM AggWU ) CONCAT ":" CONCAT GET @INDEX 1.00000000 FROM AggWU ) CONCAT ".Diversion Requested" ) [dt] := "Max"( ( "GetSlot"( ( % "FullDiversionReach_BOI" CONCAT "." CONCAT GET @INDEX 0.00000000 FROM AggWU ) ) [dt] - $ "AdjustmentTable_BOI.DiversionWeight" [reach, "Slope"] * ( ( $ "AdjustmentTable_BOI.DiversionWeight" [reach, "Threshold"] - WaterSupply ) / 1.00000000 "acre-ft" * 0.50400000 "cfs" ) * $ "AdjustmentTable_BOI.DiversionShortageSpread" [dt, ( GET @INDEX 0.00000000 FROM AggWU )] ) * $ "AdjustmentTable_BOI.DiversionWeight" [reach, "Percent"], 0.00000000 "cfs" );
+
+      END_IF_STATEMENT;
+
+      ENDFOREACH;
+
+      END_WITH_STATEMENT;
+
+      END_WITH_STATEMENT;
+
+      ENDFOREACH;
+
+      END_WITH_STATEMENT;
+
+      END_IF_STATEMENT;
+
+    END
+    UUID "{69306ccc-6686-4713-ba4c-354226ae4068}";;
+
+    RULE                 "Water Supply Adjustment PAY";
+    DESCRIPTION          "";
+    ACTIVE               TRUE;
+    RULE_EXEC_CONSTRAINT NOT "HasRuleFiredSuccessfully"( "ThisRule" );
+    NOTES                "";
+    BEGIN
+
+      IF_STATEMENT (@"t" == @"April 1") THEN
+            WITH_STATEMENT (LIST data = "RowLabels"( $ "AdjustmentTable_PAY.DiversionWeight" )) DO
+            FOREACH (STRING reach IN data) DO
+            WITH_STATEMENT (LIST AggWU = "Split"( reach, "__" )) DO
+            WITH_STATEMENT (NUMERIC WaterSupply = $ "Deadwood.Storage" [@"24:00:00 March 31, Current Year"] + $ "Cascade.Storage" [@"24:00:00 March 31, Current Year"] + "SumFlowsToVolume"( $ "Deadwood.Hydrologic Inflow", @"24:00:00 April 1, Current Year", @"24:00:00 November 30, Current Year" ) + "SumFlowsToVolume"( $ "McCallToCascade:Reach4Local.Local Inflow", @"24:00:00 April 1, Current Year", @"24:00:00 November 30, Current Year" ) + "SumFlowsToVolume"( $ "CascadeToHSBend:Reach6Local.Local Inflow", @"24:00:00 April 1, Current Year", @"24:00:00 November 30, Current Year" ) + "SumFlowsToVolume"( $ "SouthForkPayette:Reach1Local.Local Inflow", @"24:00:00 April 1, Current Year", @"24:00:00 November 30, Current Year" ) + "SumFlowsToVolume"( $ "CascadeToHSBend:Reach7Local.Local Inflow", @"24:00:00 April 1, Current Year", @"24:00:00 November 30, Current Year" )) DO
+            FOREACH (DATETIME dt IN @"24:00:00 April 1, Current Year" TO @"24:00:00 December 1, Current Year") DO
+            IF_STATEMENT (WaterSupply > $ "AdjustmentTable_PAY.DiversionWeight" [reach, "Threshold"]) THEN
+            "GetSlot"( ( ( GET @INDEX 0.00000000 FROM AggWU ) CONCAT ":" CONCAT GET @INDEX 1.00000000 FROM AggWU ) CONCAT ".Diversion Requested" ) [dt] := "GetSlot"( ( % "FullDiversionReach_PAY" CONCAT "." CONCAT GET @INDEX 0.00000000 FROM AggWU ) ) [dt] * $ "AdjustmentTable_PAY.DiversionWeight" [reach, "Percent"];
+
+      ELSE
+            "GetSlot"( ( ( GET @INDEX 0.00000000 FROM AggWU ) CONCAT ":" CONCAT GET @INDEX 1.00000000 FROM AggWU ) CONCAT ".Diversion Requested" ) [dt] := "Max"( ( "GetSlot"( ( % "FullDiversionReach_PAY" CONCAT "." CONCAT GET @INDEX 0.00000000 FROM AggWU ) ) [dt] - $ "AdjustmentTable_PAY.DiversionWeight" [reach, "Slope"] * ( ( $ "AdjustmentTable_PAY.DiversionWeight" [reach, "Threshold"] - WaterSupply ) / 1.00000000 "acre-ft" * 0.50400000 "cfs" ) * $ "AdjustmentTable_PAY.DiversionShortageSpread" [dt, ( GET @INDEX 0.00000000 FROM AggWU )] ) * $ "AdjustmentTable_PAY.DiversionWeight" [reach, "Percent"], 0.00000000 "cfs" );
+
+      END_IF_STATEMENT;
+
+      ENDFOREACH;
+
+      END_WITH_STATEMENT;
+
+      END_WITH_STATEMENT;
+
+      ENDFOREACH;
+
+      END_WITH_STATEMENT;
+
+      END_IF_STATEMENT;
+
+    END
+    UUID "{60fbc5df-bb38-4e82-98a7-28e5bf058ff5}";;
+
+    RULE                 "Diversion Requests - SNK";
+    DESCRIPTION          "";
+    ACTIVE               FALSE;
+    RULE_EXEC_CONSTRAINT NOT "HasRuleFiredSuccessfully"( "ThisRule" );
+    NOTES                "";
+    BEGIN
+
+      IF_STATEMENT (@"t" == @"November 1") THEN
+            WITH_STATEMENT (OBJECT data = % "HistoricalDiversion_SNK") DO
+            FOREACH (SLOT slot IN "GetSeriesSlots"( data )) DO
+            WITH_STATEMENT (LIST ObjSlot = "Split"( STRINGIFY slot, "." )) DO
+            WITH_STATEMENT (LIST AggWU = "Split"( GET @INDEX 1.00000000 FROM ObjSlot, "__" )) DO
+            FOREACH (DATETIME dt IN @"24:00:00 January 1, Next Year" TO @"24:00:00 December 31, Next Year") DO
+            IF_STATEMENT (( LENGTH AggWU ) == 2.00000000) THEN
+            "GetSlot"( ( ( GET @INDEX 0.00000000 FROM AggWU ) CONCAT ":" CONCAT GET @INDEX 1.00000000 FROM AggWU ) CONCAT ".Diversion Requested" ) [dt] := NaNToZero ( ( % "DemandPatterns_SNK" & GET @INDEX 1.00000000 FROM ObjSlot ) [dt, $ "OperationsData.HydrologicState_SNK" [dt]] );
+
+      ELSE
+            IF_STATEMENT (( GET @INDEX 1.00000000 FROM ObjSlot ) == "CXCI" OR ( GET @INDEX 1.00000000 FROM ObjSlot ) == "Eagle_Rk" OR ( GET @INDEX 1.00000000 FROM ObjSlot ) == "ReservationCanal") THEN
+            "GetSlot"( ( GET @INDEX 1.00000000 FROM ObjSlot ) CONCAT ".Diversion Request" ) [dt] := NaNToZero ( ( % "DemandPatterns_SNK" & GET @INDEX 1.00000000 FROM ObjSlot ) [dt, $ "OperationsData.HydrologicState_SNK" [dt]] );
+
+      ELSE
+            "GetSlot"( ( GET @INDEX 1.00000000 FROM ObjSlot ) CONCAT ".Diversion Requested" ) [dt] := NaNToZero ( ( % "DemandPatterns_SNK" & GET @INDEX 1.00000000 FROM ObjSlot ) [dt, $ "OperationsData.HydrologicState_SNK" [dt]] );
+
+      END_IF_STATEMENT;
+
+      END_IF_STATEMENT;
+
+      ENDFOREACH;
+
+      END_WITH_STATEMENT;
+
+      END_WITH_STATEMENT;
+
+      ENDFOREACH;
+
+      END_WITH_STATEMENT;
+
+      END_IF_STATEMENT;
+
+    END
+    UUID "{cca220f9-322b-498d-886f-76a08eb22f64}";;
+
+    RULE                 "Diversion Requests - BOI";
+    DESCRIPTION          "";
+    ACTIVE               FALSE;
+    RULE_EXEC_CONSTRAINT NOT "HasRuleFiredSuccessfully"( "ThisRule" );
+    NOTES                "";
+    BEGIN
+
+      IF_STATEMENT (@"t" == @"November 1") THEN
+            WITH_STATEMENT (OBJECT data = % "HistoricalDiversion_BOI") DO
+            FOREACH (SLOT slot IN "GetSeriesSlots"( data )) DO
+            WITH_STATEMENT (LIST ObjSlot = "Split"( STRINGIFY slot, "." )) DO
+            WITH_STATEMENT (LIST AggWU = "Split"( GET @INDEX 1.00000000 FROM ObjSlot, "__" )) DO
+            FOREACH (DATETIME dt IN @"24:00:00 January 1, Next Year" TO @"24:00:00 December 31, Next Year") DO
+            "GetSlot"( ( ( GET @INDEX 0.00000000 FROM AggWU ) CONCAT ":" CONCAT GET @INDEX 1.00000000 FROM AggWU ) CONCAT ".Diversion Requested" ) [dt] := NaNToZero ( ( % "DemandPatterns_BOI" & GET @INDEX 1.00000000 FROM ObjSlot ) [dt, $ "OperationsData.HydrologicState_BOI" [dt]] );
+
+      ENDFOREACH;
+
+      END_WITH_STATEMENT;
+
+      END_WITH_STATEMENT;
+
+      ENDFOREACH;
+
+      END_WITH_STATEMENT;
+
+      END_IF_STATEMENT;
+
+    END
+    UUID "{97995f7a-fc9a-47b0-9ecd-7922fbfd1119}";;
+
+    RULE                 "Diversion Requests - PAY";
+    DESCRIPTION          "";
+    ACTIVE               FALSE;
+    RULE_EXEC_CONSTRAINT NOT "HasRuleFiredSuccessfully"( "ThisRule" );
+    NOTES                "";
+    BEGIN
+
+      IF_STATEMENT (@"t" == @"November 1") THEN
+            WITH_STATEMENT (OBJECT data = % "HistoricalDiversion_PAY") DO
+            FOREACH (SLOT slot IN "GetSeriesSlots"( data )) DO
+            WITH_STATEMENT (LIST ObjSlot = "Split"( STRINGIFY slot, "." )) DO
+            WITH_STATEMENT (LIST AggWU = "Split"( GET @INDEX 1.00000000 FROM ObjSlot, "__" )) DO
+            FOREACH (DATETIME dt IN @"24:00:00 January 1, Next Year" TO @"24:00:00 December 31, Next Year") DO
+            "GetSlot"( ( ( GET @INDEX 0.00000000 FROM AggWU ) CONCAT ":" CONCAT GET @INDEX 1.00000000 FROM AggWU ) CONCAT ".Diversion Requested" ) [dt] := NaNToZero ( ( % "DemandPatterns_PAY" & GET @INDEX 1.00000000 FROM ObjSlot ) [dt, $ "OperationsData.HydrologicState_PAY" [dt]] );
+
+      ENDFOREACH;
+
+      END_WITH_STATEMENT;
+
+      END_WITH_STATEMENT;
+
+      ENDFOREACH;
+
+      END_WITH_STATEMENT;
+
+      END_IF_STATEMENT;
+
+    END
+    UUID "{c8dd2057-b283-4eb2-a41e-23a7c3d888a0}";;
+
+    RULE                 "Hydrologic State";
+    DESCRIPTION          "";
+    ACTIVE               TRUE;
+    RULE_EXEC_CONSTRAINT NOT "HasRuleFiredSuccessfully"( "ThisRule" );
+    NOTES                "";
+    BEGIN
+
+      IF_STATEMENT (@"t" == @"November 1") THEN
+            WITH_STATEMENT (DATETIME sep30 = "CheckRunEndDate"( "NextDate"( @"t", @"September 30" ) )) DO
+            WITH_STATEMENT (NUMERIC hydStateSNK = "GetHydrologicState_SNK"( "NextDate"( @"t", @"April 1" ), sep30 )) DO
+            WITH_STATEMENT (NUMERIC hydStateBOI = "GetHydrologicState_BOI"( "NextDate"( @"t", @"April 1" ), sep30 )) DO
+            WITH_STATEMENT (NUMERIC hydStatePAY = "GetHydrologicState_PAY"( "NextDate"( @"t", @"April 1" ), sep30 )) DO
+            FOREACH (DATETIME dtCY IN @"24:00:00 January 1, Next Year" TO @"24:00:00 December 31, Next Year") DO
+            $ "OperationsData.HydrologicState_SNK" [dtCY] := hydStateSNK;
+
+            $ "OperationsData.HydrologicState_BOI" [dtCY] := hydStateBOI;
+
+            $ "OperationsData.HydrologicState_PAY" [dtCY] := hydStatePAY;
+
+      ENDFOREACH;
+
+      END_WITH_STATEMENT;
+
+      END_WITH_STATEMENT;
+
+      END_WITH_STATEMENT;
+
+      END_WITH_STATEMENT;
+
+      END_IF_STATEMENT;
+
+    END
+    UUID "{ffb283e7-85fb-4a3d-bc9c-9b4a2b826590}";;
+
+  END
+  UUID "{4d5c3a8a-947e-4c81-b0ed-004edde78d2c}";;
+
+END
+UUID "{97c1e596-88ad-4c21-9151-e696e626457b}";
