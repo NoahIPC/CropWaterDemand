@@ -27,13 +27,15 @@ from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.metrics import r2_score
 from sklearn.preprocessing import QuantileTransformer
 
+from sklearn.model_selection import GridSearchCV
+
 import plotly.graph_objects as go
 
 import os
 
 
 # Update this to the name of the basin
-BasinName = "SNK"
+BasinName = "BOI"
 
 # From USBR RiverWare Report
 Reaches = pd.read_csv("../Data/RiverWareReaches.csv")
@@ -81,7 +83,7 @@ for Reach in Reaches["RiverWare Reach"].unique():
         pass
 
     # Set values outside irrigation season to 0
-    Diversions[Diversions.index.dayofyear < 31] = 0
+    Diversions[Diversions.index.dayofyear < 61] = 0
 
     # Reindex to 1980 - 2018
     Diversions = Diversions.reindex(pd.date_range(datetime(1980, 1, 1), datetime(2018, 12, 31)))
@@ -107,7 +109,7 @@ for Reach in ObservedDiversions.columns:
 
     Diversions = ObservedDiversions[Reach].copy()
 
-    if Diversions.mean()<1:
+    if Diversions.mean()<10:
         MedianDiv = ObservedDiversions.loc[ObservedDiversions[Reach]>0, Reach]
         MedianDiv = MedianDiv.groupby(MedianDiv.index.dayofyear).median()
         for i in MedianDiv.index:
@@ -136,9 +138,9 @@ for Reach in ObservedDiversions.columns:
     
         # Years that have have a full water supply
         if BasinName == "SNK":
-            Years = [2010, 2012, 2014, 2017, 2018]
+            Years = [2010, 2012, 2014, 2017]
         elif BasinName == "BOI":
-            Years = [2011, 2012, 2017, 2018]
+            Years = [2011, 2012, 2016, 2017, 2018]
         elif BasinName == "PAY":
             Years = [2010, 2011, 2012, 2017, 2018]
 

@@ -38,7 +38,7 @@ def piecewise_linear(x, m, b, y2):
 
 
 # Update this to the name of the basin
-BasinName = "BOI"
+BasinName = "PAY"
 
 # Dictionary of water supply sources for each reach
 WaterSupplyDict = {'SNK': {'HEII': {'Inflow': ['HEII'], 'Reservoirs': ['JCK', 'PAL']},
@@ -49,7 +49,7 @@ WaterSupplyDict = {'SNK': {'HEII': {'Inflow': ['HEII'], 'Reservoirs': ['JCK', 'P
                     'BOI': {'BOI': {'Inflow': ['LUC'], 'Reservoirs': ['LUC', 'ARK', 'AND']}},
                     'PAY': {'PAY': {'Inflow': ['HRSI'], 'Reservoirs': ['CSC', 'DED']}}}
 
-StartDay = {'SNK': 91, 'BOI': 91, 'PAY': 91}
+StartDay = {'SNK': 60, 'BOI': 60, 'PAY': 60}
 
 SWSITotal = pd.DataFrame(index=pd.date_range('1980-01-01', '2018-12-31', freq='D'), columns=WaterSupplyDict[BasinName].keys()).fillna(0)
 
@@ -163,22 +163,21 @@ for reach in HistoricalDiversions.columns:
     # Get the gap between the historical diversions and the previously calculated full water supply diversions
     Flow = (HistoricalDiversions - ModeledDiversions.reindex(HistoricalDiversions.index))[reach]
 
-    # Calculate the cumulative sum of the gap for July and August
     Flow = Flow.resample("1Y").mean().fillna(0)
     Flow = Flow.loc[Flow.index.year >= 2000]
 
     # Fit the piecewise linear function
     fit_water_supply(Flow, reach, "WaterSupplyFull")
     
-    # Get the gap between the historical diversions and the previously calculated full water supply diversions
-    Flow = (HistoricalDiversions - ModeledDiversions.reindex(HistoricalDiversions.index))[reach]
+    # # Get the gap between the historical diversions and the previously calculated full water supply diversions
+    # Flow = (HistoricalDiversions - ModeledDiversions.reindex(HistoricalDiversions.index))[reach]
 
-    # Calculate the cumulative sum of the gap for July and August
-    Flow = Flow.loc[(HistoricalDiversions.index.month >= 7) & (HistoricalDiversions.index.month <= 9)].resample("1Y").mean().fillna(0)
-    Flow = Flow.loc[Flow.index.year >= 2000]
+    # # Calculate the cumulative sum of the gap for July and August
+    # Flow = Flow.loc[(HistoricalDiversions.index.month >= 7) & (HistoricalDiversions.index.month <= 9)].resample("1Y").mean().fillna(0)
+    # Flow = Flow.loc[Flow.index.year >= 2000]
 
-    # Fit the piecewise linear function
-    fit_water_supply(Flow, reach, "WaterSupplyJulyAugust")
+    # # Fit the piecewise linear function
+    # fit_water_supply(Flow, reach, "WaterSupplyJulyAugust")
 
 
 
@@ -215,6 +214,7 @@ for reach in HistoricalDiversions.columns:
     ]
     gap = gap.groupby(gap.index.dayofyear).mean()
     gap.loc[gap.index < StartDay[BasinName]] = 0
+    gap = gap.clip(lower=0)
 
     # Set the mean to 1
 

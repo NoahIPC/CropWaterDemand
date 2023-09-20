@@ -29,7 +29,7 @@ from datetime import datetime
 import os
 
 # Update this to the name of the basin
-BasinName = "PAY"
+BasinName = "BOI"
 
 DiversionTotal = pd.read_csv(
     f"../Outputs/{BasinName}/ReachDiversions.csv", index_col=0, parse_dates=True
@@ -93,6 +93,11 @@ for Reach in DiversionTotal.columns:
                 datetime(2010, 1, 1) : datetime(2018, 1, 1), Reach
             ].sum()
         )
+
+        if p==0:
+            continue
+
+        p = min(p, 1)
 
         Perc.append(
             [
@@ -181,25 +186,25 @@ div_weight = f"""
 set s "$o.DiversionWeight"
 "$s" order 500 
 "$s" UUID {{{uuid.uuid4()}}}
-"$s" resize {len(Perc)} 3
+"$s" resize {len(Perc)} 4
 "$s" setRowLabels """
 for i, row in Perc.iterrows():
     div_weight += "{" + row["Diversion"] + "__" + row["Name"] + "} "
 
 div_weight += """
-"$s" setColumnLabels {Slope} {Threshold} {Percent} 
-"$s" setMaximums NaN NaN NaN 
-"$s" setMinimums NaN NaN NaN 
-"$s" setUnitTypes {NONE} {Volume} {NONE} 
-"$s" setScales 1 1 1 
-"$s" setUsrUnits {NONE} {m3} {NONE} 
-"$s" setUsrFormat {%f} {%f} {%f} 
-"$s" setUsrPrecision {2} {2} {2} 
+"$s" setColumnLabels {Slope} {Threshold} {Percent} {Offset}
+"$s" setMaximums NaN NaN NaN NaN
+"$s" setMinimums NaN NaN NaN NaN
+"$s" setUnitTypes {NONE} {Volume} {NONE} {Flow}
+"$s" setScales 1 1 1 1
+"$s" setUsrUnits {NONE} {m3} {NONE} {cms}
+"$s" setUsrFormat {%f} {%f} {%f} {%f}
+"$s" setUsrPrecision {2} {2} {2} {2}
 """
 unit = 0.000810713193789912
 
 for i, row in Perc.iterrows():
-    div_weight += f'"$s" row {i} {row["Slope"]} {row["Break"]/unit} {row["Percentage"]} \n'
+    div_weight += f'"$s" row {i} {row["Slope"]} {row["Break"]/unit} {row["Percentage"]} {row["Offset"]/35.3147}\n'
 
 div_weight += """"$o" hideSlots 0 hideOff hideEmptyOff
 # Section: Snapshot Object Relationships
