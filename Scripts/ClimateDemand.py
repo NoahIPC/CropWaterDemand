@@ -35,7 +35,7 @@ import os
 
 
 # Update this to the name of the basin
-BasinName = "BOI"
+BasinName = "PAY"
 
 # From USBR RiverWare Report
 Reaches = pd.read_csv("../Data/RiverWareReaches.csv")
@@ -142,7 +142,7 @@ for Reach in ObservedDiversions.columns:
         elif BasinName == "BOI":
             Years = [2011, 2012, 2016, 2017, 2018]
         elif BasinName == "PAY":
-            Years = [2010, 2011, 2012, 2017, 2018]
+            Years = [2011, 2017, 2018]
 
         ClimateYear = Climate[[year in Years for year in Climate.index.year]]
 

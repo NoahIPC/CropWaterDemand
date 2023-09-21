@@ -38,7 +38,7 @@ def piecewise_linear(x, m, b, y2):
 
 
 # Update this to the name of the basin
-BasinName = "PAY"
+BasinName = "BOI"
 
 # Dictionary of water supply sources for each reach
 WaterSupplyDict = {'SNK': {'HEII': {'Inflow': ['HEII'], 'Reservoirs': ['JCK', 'PAL']},
@@ -72,8 +72,6 @@ for reach in WaterSupply.keys():
 
 SWSITotal = SWSITotal.resample("1Y").sum()
 
-
-
 HistoricalDiversions = pd.read_csv(f"../Outputs/{BasinName}/ObservedDiversions.csv",
                                     index_col=0, parse_dates=True).dropna()
 ModeledDiversions = pd.read_csv(f"../Outputs/{BasinName}/ReachDiversions.csv", 
@@ -83,13 +81,14 @@ ModeledDiversions = pd.read_csv(f"../Outputs/{BasinName}/ReachDiversions.csv",
 ReachWaterSupply = pd.read_csv("../Data/ReachSWSI.csv", index_col=0)
 ReachWaterSupply = ReachWaterSupply[ReachWaterSupply.index.str.contains(f"_{BasinName}")]
 
-Outputs = pd.DataFrame(index=ReachWaterSupply.index, columns=["Slope", "y2", "Break"])
+
+Outputs = pd.DataFrame(index=ReachWaterSupply.index, columns=["Slope", "y2", "Break", "R2"])
 
 for reach in HistoricalDiversions.columns:
     print(reach)
 
 
-    def fit_water_supply(Flow, reach, OutputFolder):
+    def fit_water_supply(Flow, reach, OutputFolder, UpdateOutputs=True):
         # Get the avaiable water supply for the reach
         WaterSupplyName = ReachWaterSupply.loc[reach, "Water Supply"]
         WaterSupply = SWSITotal[WaterSupplyName]
@@ -97,8 +96,8 @@ for reach in HistoricalDiversions.columns:
 
         # Set the bounds for the piecewise linear fit to be the 5th smallest and 5th largest water supply values
         bounds = [
-            [WaterSupply.nsmallest(5).iloc[4], WaterSupply.nlargest(5).iloc[4]],
-            [0, 1],
+            [0, WaterSupply.nsmallest(5).iloc[4], -np.inf],
+            [0.002, WaterSupply.nlargest(5).iloc[4], np.inf],
         ]
 
 
@@ -107,7 +106,8 @@ for reach in HistoricalDiversions.columns:
             piecewise_linear,
             WaterSupply.values,
             Flow.values,
-            p0=[0.01, WaterSupply.mean(), 0],
+            p0=[0.001, WaterSupply.mean(), 0],
+            bounds=bounds,
         )
 
         m = p[0]
@@ -141,6 +141,8 @@ for reach in HistoricalDiversions.columns:
         # Calculate the R2 value
         r2 = r2_score(Flow, piecewise_linear(WaterSupply.values, m, b, y2))
 
+        Outputs.loc[reach, "R2"] = r2
+
         # Add the legend and title
         params = f"m={m:.2e}\n b={b:.2e}\n y2={y2:.2f}\n R2={r2:.2f}"
         plt.plot([], [], " ", label=params)
@@ -162,6 +164,7 @@ for reach in HistoricalDiversions.columns:
 
     # Get the gap between the historical diversions and the previously calculated full water supply diversions
     Flow = (HistoricalDiversions - ModeledDiversions.reindex(HistoricalDiversions.index))[reach]
+    Flow = Flow.loc[(Flow.index.dayofyear >= StartDay[BasinName]) & (Flow.index.dayofyear <= 273)]
 
     Flow = Flow.resample("1Y").mean().fillna(0)
     Flow = Flow.loc[Flow.index.year >= 2000]
@@ -170,14 +173,15 @@ for reach in HistoricalDiversions.columns:
     fit_water_supply(Flow, reach, "WaterSupplyFull")
     
     # # Get the gap between the historical diversions and the previously calculated full water supply diversions
-    # Flow = (HistoricalDiversions - ModeledDiversions.reindex(HistoricalDiversions.index))[reach]
+    Flow = (HistoricalDiversions - ModeledDiversions.reindex(HistoricalDiversions.index))[reach]
+    Flow = Flow.loc[(Flow.index.dayofyear >= StartDay[BasinName]) & (Flow.index.dayofyear <= 273)]
 
     # # Calculate the cumulative sum of the gap for July and August
-    # Flow = Flow.loc[(HistoricalDiversions.index.month >= 7) & (HistoricalDiversions.index.month <= 9)].resample("1Y").mean().fillna(0)
-    # Flow = Flow.loc[Flow.index.year >= 2000]
+    Flow = Flow.loc[(Flow.index.month >= 7) & (Flow.index.month <= 9)].resample("1Y").mean().fillna(0)
+    Flow = Flow.loc[Flow.index.year >= 2000]
 
     # # Fit the piecewise linear function
-    # fit_water_supply(Flow, reach, "WaterSupplyJulyAugust")
+    fit_water_supply(Flow, reach, "WaterSupplyJulyAugust", UpdateOutputs=False)
 
 
 
@@ -201,22 +205,23 @@ WaterSupplyRiverWare.to_csv(f"../Outputs/{BasinName}/RiverWareInputs/WaterSupply
 
 Outputs.to_csv(f"../Outputs/{BasinName}/SlopeThreshold.csv")
 
-
 ReachGap = pd.DataFrame(index=range(366), columns=HistoricalDiversions.columns)
 
 for reach in HistoricalDiversions.columns:
     gap = (
-        HistoricalDiversions - ModeledDiversions.reindex(HistoricalDiversions.index)
+        ModeledDiversions.reindex(HistoricalDiversions.index) - HistoricalDiversions
     ).loc[
-        (HistoricalDiversions.index.year > 2000)
-        * (HistoricalDiversions.index.year < 2020),
+        HistoricalDiversions.index.year > 2000,
         reach,
     ]
+
+    # Get index of 5 largest years
+    smallest = gap.groupby(gap.index.year).sum().nlargest(5).index
+
+    gap = gap.loc[gap.index.year.isin(smallest)]
+
     gap = gap.groupby(gap.index.dayofyear).mean()
     gap.loc[gap.index < StartDay[BasinName]] = 0
-    gap = gap.clip(lower=0)
-
-    # Set the mean to 1
 
     gap = gap.rolling(30).mean().fillna(0)
 
@@ -234,10 +239,8 @@ def sorting_key(column_name):
 
 ReachGap.fillna(0, inplace=True)
 
-# Set each column to have a mean of 1
-ReachGap = ReachGap / ReachGap.mean()
+ReachGap /= ReachGap.mean()
 
 ReachGap = ReachGap.reindex(sorted(ReachGap.columns, key=sorting_key), axis=1)
 
 ReachGap.to_csv(f"../Outputs/{BasinName}/RiverWareInputs/ReachGap.csv")
-

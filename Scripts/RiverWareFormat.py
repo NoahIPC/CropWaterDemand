@@ -29,7 +29,7 @@ from datetime import datetime
 import os
 
 # Update this to the name of the basin
-BasinName = "BOI"
+BasinName = "PAY"
 
 DiversionTotal = pd.read_csv(
     f"../Outputs/{BasinName}/ReachDiversions.csv", index_col=0, parse_dates=True
@@ -94,7 +94,7 @@ for Reach in DiversionTotal.columns:
             ].sum()
         )
 
-        if p==0:
+        if p<0.01:
             continue
 
         p = min(p, 1)
