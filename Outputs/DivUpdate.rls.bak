@@ -1,5 +1,5 @@
 # RiverWare_Ruleset 8.3.5 Patch
-# Created 07:57 September 20, 2023
+# Created 20:31 September 20, 2023
 # 
 RULESET
 NAME "RBS Ruleset (from model file) 3";
@@ -32,7 +32,7 @@ BEGIN
             "GetSlot"( ( ( GET @INDEX 0.00000000 FROM AggWU ) CONCAT ":" CONCAT GET @INDEX 1.00000000 FROM AggWU ) CONCAT ".Diversion Requested" ) [dt] := "GetSlot"( ( % "FullDiversionReach_SNK" CONCAT "." CONCAT GET @INDEX 0.00000000 FROM AggWU ) ) [dt] * $ "AdjustmentTable_SNK.DiversionWeight" [reach, "Percent"];
 
       ELSE
-            "GetSlot"( ( ( GET @INDEX 0.00000000 FROM AggWU ) CONCAT ":" CONCAT GET @INDEX 1.00000000 FROM AggWU ) CONCAT ".Diversion Requested" ) [dt] := "Max"( ( "GetSlot"( ( % "FullDiversionReach_SNK" CONCAT "." CONCAT GET @INDEX 0.00000000 FROM AggWU ) ) [dt] - $ "AdjustmentTable_SNK.DiversionWeight" [reach, "Slope"] * ( ( $ "AdjustmentTable_SNK.DiversionWeight" [reach, "Threshold"] - WaterSupply ) / 1.00000000 "acre-ft" * 1.00000000 "cfs" ) * $ "AdjustmentTable_SNK.DiversionShortageSpread" [dt, ( GET @INDEX 0.00000000 FROM AggWU )] ) * $ "AdjustmentTable_SNK.DiversionWeight" [reach, "Percent"], 0.00000000 "cfs" );
+            "GetSlot"( ( ( GET @INDEX 0.00000000 FROM AggWU ) CONCAT ":" CONCAT GET @INDEX 1.00000000 FROM AggWU ) CONCAT ".Diversion Requested" ) [dt] := "Max"( ( "GetSlot"( ( % "FullDiversionReach_SNK" CONCAT "." CONCAT GET @INDEX 0.00000000 FROM AggWU ) ) [dt] - ( $ "AdjustmentTable_SNK.DiversionWeight" [reach, "Slope"] * ( ( $ "AdjustmentTable_SNK.DiversionWeight" [reach, "Threshold"] - WaterSupply ) / 1.00000000 "acre-ft" * 1.00000000 "cfs" ) * $ "AdjustmentTable_SNK.DiversionShortageSpread" [dt, ( GET @INDEX 0.00000000 FROM AggWU )] + $ "AdjustmentTable_SNK.DiversionWeight" [reach, "Offset"] ) ) * $ "AdjustmentTable_SNK.DiversionWeight" [reach, "Percent"], 0.00000000 "cfs" );
 
       END_IF_STATEMENT;
 
@@ -68,7 +68,7 @@ BEGIN
             "GetSlot"( ( ( GET @INDEX 0.00000000 FROM AggWU ) CONCAT ":" CONCAT GET @INDEX 1.00000000 FROM AggWU ) CONCAT ".Diversion Requested" ) [dt] := "GetSlot"( ( % "FullDiversionReach_BOI" CONCAT "." CONCAT GET @INDEX 0.00000000 FROM AggWU ) ) [dt] * $ "AdjustmentTable_BOI.DiversionWeight" [reach, "Percent"];
 
       ELSE
-            "GetSlot"( ( ( GET @INDEX 0.00000000 FROM AggWU ) CONCAT ":" CONCAT GET @INDEX 1.00000000 FROM AggWU ) CONCAT ".Diversion Requested" ) [dt] := "Max"( ( "GetSlot"( ( % "FullDiversionReach_BOI" CONCAT "." CONCAT GET @INDEX 0.00000000 FROM AggWU ) ) [dt] - $ "AdjustmentTable_BOI.DiversionWeight" [reach, "Slope"] * ( ( $ "AdjustmentTable_BOI.DiversionWeight" [reach, "Threshold"] - WaterSupply ) / 1.00000000 "acre-ft" * 1.00000000 "cfs" ) * $ "AdjustmentTable_BOI.DiversionShortageSpread" [dt, ( GET @INDEX 0.00000000 FROM AggWU )] ) * $ "AdjustmentTable_BOI.DiversionWeight" [reach, "Percent"], 0.00000000 "cfs" );
+            "GetSlot"( ( ( GET @INDEX 0.00000000 FROM AggWU ) CONCAT ":" CONCAT GET @INDEX 1.00000000 FROM AggWU ) CONCAT ".Diversion Requested" ) [dt] := "Max"( ( "GetSlot"( ( % "FullDiversionReach_BOI" CONCAT "." CONCAT GET @INDEX 0.00000000 FROM AggWU ) ) [dt] - ( $ "AdjustmentTable_BOI.DiversionWeight" [reach, "Slope"] * ( ( $ "AdjustmentTable_BOI.DiversionWeight" [reach, "Threshold"] - WaterSupply ) / 1.00000000 "acre-ft" * 1.00000000 "cfs" ) * $ "AdjustmentTable_BOI.DiversionShortageSpread" [dt, ( GET @INDEX 0.00000000 FROM AggWU )] + $ "AdjustmentTable_BOI.DiversionWeight" [reach, "Offset"] ) ) * $ "AdjustmentTable_BOI.DiversionWeight" [reach, "Percent"], 0.00000000 "cfs" );
 
       END_IF_STATEMENT;
 
@@ -100,13 +100,7 @@ BEGIN
             WITH_STATEMENT (LIST AggWU = "Split"( reach, "__" )) DO
             WITH_STATEMENT (NUMERIC WaterSupply = $ "Deadwood.Storage" [@"24:00:00 February 28, Current Year"] + $ "Cascade.Storage" [@"24:00:00 February 28, Current Year"] + "SumFlowsToVolume"( $ "Deadwood.Hydrologic Inflow", @"24:00:00 March 1, Current Year", @"24:00:00 September 30, Current Year" ) + "SumFlowsToVolume"( $ "McCallToCascade:Reach4Local.Local Inflow", @"24:00:00 March 1, Current Year", @"24:00:00 September 30, Current Year" ) + "SumFlowsToVolume"( $ "CascadeToHSBend:Reach6Local.Local Inflow", @"24:00:00 March 1, Current Year", @"24:00:00 September 30, Current Year" ) + "SumFlowsToVolume"( $ "SouthForkPayette:Reach1Local.Local Inflow", @"24:00:00 March 1, Current Year", @"24:00:00 September 30, Current Year" ) + "SumFlowsToVolume"( $ "CascadeToHSBend:Reach7Local.Local Inflow", @"24:00:00 March 1, Current Year", @"24:00:00 September 30, Current Year" )) DO
             FOREACH (DATETIME dt IN @"24:00:00 March 1, Current Year" TO @"24:00:00 December 31, Current Year") DO
-            IF_STATEMENT (WaterSupply > $ "AdjustmentTable_PAY.DiversionWeight" [reach, "Threshold"]) THEN
             "GetSlot"( ( ( GET @INDEX 0.00000000 FROM AggWU ) CONCAT ":" CONCAT GET @INDEX 1.00000000 FROM AggWU ) CONCAT ".Diversion Requested" ) [dt] := "GetSlot"( ( % "FullDiversionReach_PAY" CONCAT "." CONCAT GET @INDEX 0.00000000 FROM AggWU ) ) [dt] * $ "AdjustmentTable_PAY.DiversionWeight" [reach, "Percent"];
-
-      ELSE
-            "GetSlot"( ( ( GET @INDEX 0.00000000 FROM AggWU ) CONCAT ":" CONCAT GET @INDEX 1.00000000 FROM AggWU ) CONCAT ".Diversion Requested" ) [dt] := "Max"( ( "GetSlot"( ( % "FullDiversionReach_PAY" CONCAT "." CONCAT GET @INDEX 0.00000000 FROM AggWU ) ) [dt] - $ "AdjustmentTable_PAY.DiversionWeight" [reach, "Slope"] * ( ( $ "AdjustmentTable_PAY.DiversionWeight" [reach, "Threshold"] - WaterSupply ) / 1.00000000 "acre-ft" * 1.00000000 "cfs" ) * $ "AdjustmentTable_PAY.DiversionShortageSpread" [dt, ( GET @INDEX 0.00000000 FROM AggWU )] ) * $ "AdjustmentTable_PAY.DiversionWeight" [reach, "Percent"], 0.00000000 "cfs" );
-
-      END_IF_STATEMENT;
 
       ENDFOREACH;
 
